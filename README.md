@@ -1,69 +1,73 @@
 # mahjong-py
 
-This folder is a **pure Python + Numba** port scaffold of the core algorithms from the sibling project `mahjong-cpp`.
+本项目是 `mahjong-cpp` 的 **Python 版本**，核心算法保持一致，便于脚本调用、接口服务与 GUI 交互。
 
-## What works (initial scaffold)
+## 功能概览
 
-- Table loader (reads `../mahjong-cpp/data/config/{suits_table.bin,honors_table.bin}` and builds dense `numpy.memmap` files)
-- Shanten (regular / seven pairs / thirteen orphans)
-- Necessary tiles / Unnecessary tiles (based on the same DP merge logic as C++)
-- Score calculation (core yaku + fu/han + score table)
+- 向听数：一般形 / 七对子 / 国士无双
+- 进张 / 打张 / 听牌分析
+- 计分：役种、翻数、符数、点数
+- CLI 命令行
+- FastAPI 服务
+- GUI（Maliang）点选牌面
 
-## Score CLI
+## 快速开始（Windows）
 
-After installing the package in editable mode, use:
+在项目根目录执行：
 
-mahjong-score 123m789p123s77z 7z --flags tsumo
+1. 创建并激活虚拟环境
+2. 安装依赖
+3. 运行测试
 
-Options:
-- --seat: seat wind tile id (27=East, 28=South, 29=West, 30=North)
-- --round: round wind tile id (27..30)
-- --dora / --uradora: dora indicator tiles (tile id or mpsz like 5m)
-- --honba / --kyotaku
-- --flags: tsumo/riichi/driichi/ippatsu/rob/afterkong/undersea/underriver/nagashi/tenhou/chihou/renhou
-- --meld-json: JSON list of melds
-- --meld-file: path to JSON list of melds
+（首次运行会在 `data/generated/` 生成表，耗时稍长）
 
-Example with open melds (meld JSON in examples/melds_open.json):
+## CLI 用法
 
-mahjong-score 3s4s22z 5s --flags tsumo undersea --meld-file examples/melds_open.json
+计分（示例）：
 
-## FastAPI server
+`mahjong-score 123m789p123s77z 7z --flags tsumo`
 
-Run the server:
+常用参数：
 
-uvicorn mahjong_py.server:app --host 0.0.0.0 --port 8000
+- `--mode`: auto/score/shanten
+- `--seat` / `--round`: 自风/场风（27=东，28=南，29=西，30=北）
+- `--dora` / `--uradora`: **宝牌指示牌**（牌 id 或 mpsz，如 5m）
+- `--honba` / `--kyotaku`
+- `--flags`: tsumo/riichi/driichi/ippatsu/rob/afterkong/undersea/underriver/nagashi/tenhou/chihou/renhou
+- `--meld-json` / `--meld-file`: 副露 JSON
 
-POST /calc accepts the same request JSON shape as mahjong-cpp (subset for now). It returns:
+带副露示例：
 
-- success: true/false
-- request: echoed payload
-- response: shanten + (placeholder) stats/config
+`mahjong-score 3s4s22z 5s --flags tsumo undersea --meld-file examples/melds_open.json`
 
-POST /score calculates yaku/han/fu/score. Example payload:
+## GUI
 
-{
-	"hand": [0,0,0,1,1,1,2,3,4,18,18,18,28,28],
-	"melds": [],
-	"seat_wind": 27,
-	"round_wind": 27,
-	"dora_indicators": [],
-	"uradora_indicators": [],
-	"win_tile": 28,
-	"win_flag": 2,
-	"enable_reddora": true
-}
+运行 GUI：
 
-## Quick start
+`python -m mahjong_py.gui`
 
-From this folder:
+特性：
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -U pip
-python -m pip install -e .[dev]
-pytest
-```
+- 牌面图片点击选牌
+- 宝牌/里宝牌指示牌设置
+- 结果面板清晰展示（支持自动扩展）
 
-The first `pytest` run may take longer because it will build the dense memmap tables under `data/generated/`.
+## FastAPI 服务
+
+启动：
+
+`uvicorn mahjong_py.server:app --host 0.0.0.0 --port 8000`
+
+接口：
+
+- `POST /calc`：向听与进张
+- `POST /score`：役/翻/符/点数
+
+## 数据与配置
+
+- `data/config/`：规则与 pattern 配置（JSON）
+- `data/generated/`：运行时生成的表（memmap）
+
+## 许可证
+
+本项目基于 `mahjong-cpp`（GPLv3）修改而来，遵循 **GNU GPL v3** 许可证。
