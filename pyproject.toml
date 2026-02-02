@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mahjong-py"
+version = "0.1.0"
+description = "Pure Python + Numba port of mahjong-cpp core algorithms"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.26",
+  "numba>=0.59",
+  "fastapi>=0.111",
+  "uvicorn>=0.30",
+]
+
+[project.scripts]
+mahjong-score = "mahjong_py.cli:main"
+mahjong-gui = "mahjong_py.gui:main"
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8",
+]
+gui = [
+  "maliang>=3.1.5",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-q"

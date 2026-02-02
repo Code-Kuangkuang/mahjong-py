@@ -1,0 +1,28 @@
+[
+    {
+        "type": 1,
+        "tiles": [
+            0,
+            1,
+            2
+        ]
+    },
+    {
+        "type": 0,
+        "tiles": [
+            13,
+            13,
+            13
+        ],
+        "discarded_tile": 13,
+        "from_player": 1
+    },
+    {
+        "type": 1,
+        "tiles": [
+            24,
+            25,
+            26
+        ]
+    }
+]

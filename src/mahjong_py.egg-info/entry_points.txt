@@ -1,0 +1,2 @@
+[console_scripts]
+mahjong-score = mahjong_py.cli:main
