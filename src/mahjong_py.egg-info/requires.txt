@@ -1,7 +1,0 @@
-numpy>=1.26
-numba>=0.59
-fastapi>=0.111
-uvicorn>=0.30
-
-[dev]
-pytest>=8

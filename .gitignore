@@ -3,6 +3,28 @@ __pycache__/
 *.pyc
 .pytest_cache/
 
+# local assistant/editor state
+.claude/
+.agents/
+.codex/
+
+# build outputs and native artifacts
+_build/
+_deps/
+*.obj
+*.o
+*.exe
+*.dll
+*.lib
+*.pyd
+build/
+dist/
+*.egg-info/
+
 # generated tables
+/data/generated/
 /data/config/*.bin
 !data/config/*.json
+!data/config/uradora.bin
+!data/config/suits_table.bin
+!data/config/honors_table.bin

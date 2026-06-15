@@ -805,6 +805,34 @@ class ScoreCalculator:
         return num
 
     @staticmethod
+    def get_up_scores(round_: Round, player: Player, result: Result, win_flag: int, n: int) -> List[int]:
+        """返回当前和牌结果额外增加 0..n 番时的总得点。
+
+        期望值计算会用它估计里宝牌带来的升番收益。
+        """
+        if not result.success:
+            return []
+        if result.score_title >= ScoreTitle.CountedYakuman:
+            return [result.score[0]]
+
+        scores = [0] * (n + 1)
+        is_dealer = player.wind == Tile.East
+        is_tsumo = bool(win_flag & WinFlag.Tsumo)
+        for i in range(n + 1):
+            han = result.han + i
+            score_title = ScoreCalculator.get_score_title(result.fu, han)
+            scores[i] = ScoreCalculator.calc_score(
+                is_dealer,
+                is_tsumo,
+                round_.honba,
+                round_.kyotaku,
+                score_title,
+                han,
+                result.fu,
+            )[0]
+        return scores
+
+    @staticmethod
     def get_score_title(fu: int, han: int) -> int:
         """根据符/番确定是否为满贯以上，以及对应的段位（满贯/跳满/倍满/三倍满/累计役满）。"""
         fu_idx = fu_to_index(fu)

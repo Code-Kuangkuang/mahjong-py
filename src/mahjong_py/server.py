@@ -20,10 +20,15 @@ from .constants import Tile
 from .score_calculator import ScoreCalculator
 from .score_constants import WinFlag, YakuName
 from .score_types import Meld, Player, Round, RuleFlag, hand_from_tiles
+from .expected_score_calculator import (
+    ExpectedScoreCalculator,
+    ExpectedScoreConfig,
+    ExpectedScoreStat,
+)
+from .expected_score_numba import ExpectedScoreNumbaCalculator
 from .shanten import ShantenFlag, shanten
 from .necessary import necessary_tiles
 from .unnecessary import unnecessary_tiles
-from .utils import is_reddora, to_no_reddora
 
 
 class MeldIn(BaseModel):
@@ -48,6 +53,7 @@ class RequestIn(BaseModel):
     version: Optional[str] = None
     wall: Optional[List[int]] = None
     ip: Optional[str] = None
+    use_numba: bool = True  # True = use Numba accelerator
 
 
 class ScoreRequestIn(BaseModel):
@@ -80,39 +86,18 @@ def _validate_tiles(tiles: List[int]) -> None:
         raise ValueError("tile out of range")
 
 
-def _count_meld_tiles(melds: List[Meld]) -> List[int]:
-    """统计副露里出现的牌数量（将赤 5 同时计入普通 5 与赤 flag）。"""
-    counts = [0] * 37
-    for meld in melds:
-        for t in meld.tiles:
-            counts[to_no_reddora(t)] += 1
-            if is_reddora(t):
-                counts[t] += 1
-    return counts
+def _validate_wall(wall: List[int]) -> None:
+    """校验牌山计数。"""
+    if len(wall) != 37:
+        raise ValueError("wall must contain 37 counts")
+    for count in wall:
+        if count < 0 or count > 4:
+            raise ValueError("wall count out of range")
 
 
 def _create_wall(round_: Round, player: Player, enable_reddora: bool) -> List[int]:
     """根据玩家手牌/副露/宝牌指示，推算牌山剩余张数（用于有效牌枚举）。"""
-    wall = [0] * 37
-    meld_counts = _count_meld_tiles(player.melds)
-    indicator_counts = [0] * 37
-
-    for t in round_.dora_indicators:
-        indicator_counts[to_no_reddora(t)] += 1
-        if is_reddora(t):
-            indicator_counts[t] += 1
-
-    for i in range(34):
-        wall[i] = 4 - (int(player.hand[i]) + meld_counts[i] + indicator_counts[i])
-
-    if enable_reddora:
-        for i in range(34, 37):
-            wall[i] = 1 - (int(player.hand[i]) + meld_counts[i] + indicator_counts[i])
-    else:
-        for i in range(34, 37):
-            wall[i] = 0
-
-    return wall
+    return ExpectedScoreCalculator.create_wall(round_, player, enable_reddora)
 
 
 def _apply_discard(hand: List[int], tile: int) -> List[int]:
@@ -174,6 +159,26 @@ def _build_round(req: RequestIn) -> Round:
     round_.wind = req.round_wind
     round_.dora_indicators = list(req.dora_indicators)
     return round_
+
+
+def _dump_expected_stats(stats: List[ExpectedScoreStat]) -> List[Dict[str, Any]]:
+    """将期望值统计结果转换成 JSON 友好的结构。"""
+    out = []
+    for stat in stats:
+        out.append(
+            {
+                "tile": stat.tile,
+                "tenpai_prob": [min(float(x), 1.0) for x in stat.tenpai_prob],
+                "win_prob": [min(float(x), 1.0) for x in stat.win_prob],
+                "exp_score": [float(x) for x in stat.exp_score],
+                "necessary_tiles": [
+                    {"tile": tile, "count": count}
+                    for tile, count in stat.necessary_tiles
+                ],
+                "shanten": stat.shanten,
+            }
+        )
+    return out
 
 
 @app.get("/health")
@@ -284,6 +289,7 @@ def calc(payload: Dict[str, Any]) -> Dict[str, Any]:
         round_ = _build_round(req)
 
         wall = req.wall if req.wall is not None else _create_wall(round_, player, req.enable_reddora)
+        _validate_wall(wall)
 
         num_tiles = player.num_tiles() + player.num_melds() * 3
         if num_tiles % 3 == 0 or num_tiles > 14:
@@ -299,6 +305,31 @@ def calc(payload: Dict[str, Any]) -> Dict[str, Any]:
 
         _, _, necessary = necessary_tiles(player.hand[:34], player.num_melds(), ShantenFlag.All)
         _, _, unnecessary = unnecessary_tiles(player.hand[:34], player.num_melds(), ShantenFlag.All)
+
+        config = ExpectedScoreConfig(
+            t_min=1,
+            t_max=18,
+            sum=sum(wall[:34]),
+            extra=1,
+            shanten_type=ShantenFlag.All,
+            calc_stats=shanten_all <= 3,
+            enable_reddora=req.enable_reddora,
+            enable_uradora=req.enable_uradora,
+            enable_shanten_down=req.enable_shanten_down,
+            enable_tegawari=req.enable_tegawari,
+            enable_riichi=req.enable_riichi,
+            use_numba=req.use_numba,
+        )
+        if shanten_all == 0:
+            config.enable_shanten_down = False
+            config.enable_tegawari = False
+
+        start_ns = time.perf_counter_ns()
+        if config.use_numba and not player.melds:
+            stats, searched = ExpectedScoreNumbaCalculator.calc(config, round_, player, wall)
+        else:
+            stats, searched = ExpectedScoreCalculator.calc(config, round_, player, wall)
+        elapsed_us = (time.perf_counter_ns() - start_ns) // 1000
 
         discard_options = []
         if num_tiles % 3 == 2:
@@ -340,16 +371,17 @@ def calc(payload: Dict[str, Any]) -> Dict[str, Any]:
             "necessary_tiles": necessary,
             "unnecessary_tiles": unnecessary,
             "discard_options": discard_options,
-            "stats": [],
-            "searched": 0,
-            "time": 0,
+            "stats": _dump_expected_stats(stats),
+            "searched": searched,
+            "time": elapsed_us,
             "config": {
-                "t_min": 1,
-                "t_max": 18,
-                "sum": sum(wall[:34]),
-                "extra": 1,
-                "shanten_type": ShantenFlag.All,
-                "calc_stats": shanten_all <= 3,
+                "t_min": config.t_min,
+                "t_max": config.t_max,
+                "sum": config.sum,
+                "extra": config.extra,
+                "shanten_type": config.shanten_type,
+                "calc_stats": config.calc_stats,
+                "use_numba": config.use_numba,
                 "num_tiles": num_tiles,
             },
         }

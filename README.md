@@ -63,10 +63,16 @@
 - `POST /calc`：向听与进张
 - `POST /score`：役/翻/符/点数
 
+`/calc` 会返回 `stats`，包含每个候选打牌的听牌概率、和牌概率、点数期望、有效牌列表与搜索节点数。
+
 ## 数据与配置
 
-- `data/config/`：规则与 pattern 配置（JSON）
+- `data/config/`：规则、pattern 配置（JSON）与里宝牌统计表（`uradora.bin`）
 - `data/generated/`：运行时生成的表（memmap）
+
+## 期望值性能优化记录
+
+详见 [docs/expected-score-optimization.md](docs/expected-score-optimization.md)。
 
 ## 许可证
 
