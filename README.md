@@ -125,40 +125,6 @@ python -m mahjong_py.gui
 
 期望值计算已从原始 Python 图结构逐步迁移到数组图和 Numba 热路径。当前 `/calc` 默认使用 Numba 加速版处理无副露手牌，并保留 Python 实现作为兼容回退。
 
-详细记录见 [docs/expected-score-optimization.md](docs/expected-score-optimization.md)，其中包含：
-
-- 已证明有效的优化路径。
-- 已尝试但收益不好的方案。
-- 当前基准结论。
-- 后续优化方向。
-
-## Git 提交建议
-
-建议提交：
-
-- `src/`
-- `tests/`
-- `docs/`
-- `examples/`
-- `photo/`
-- `data/config/*.json`
-- `data/config/uradora.bin`
-- `README.md`
-- `pyproject.toml`
-- `.gitignore`
-- `LICENSE`
-
-不建议提交：
-
-- `.venv/`
-- `.pytest_cache/`
-- `__pycache__/`
-- `_build/`
-- `_deps/`
-- `data/generated/`
-- `*.obj`、`*.exe`、`*.dll`、`*.lib`
-- `*.egg-info/`
-
 ## 许可证
 
 本项目基于 `mahjong-cpp`（GPLv3）修改而来，遵循 **GNU GPL v3** 许可证。
