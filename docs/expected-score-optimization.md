@@ -1,10 +1,10 @@
 # 期望值性能优化记录
 
-本节记录对期望值计算的实验优化过程。当前默认服务路径仍是 `src/mahjong_py/expected_score_calculator.py`，`POST /calc` 仍由 `src/mahjong_py/server.py` 调用旧实现；优化版放在独立文件 `src/mahjong_py/expected_score_numba.py`，通过 `tests/test_expected_score_numba.py` 与旧实现做数值一致性对照。
+本节记录对期望值计算的优化过程。基础实现位于 `src/mahjong_py/expected_score_calculator.py`，Numba 加速实现位于 `src/mahjong_py/expected_score_numba.py`。当前 `POST /calc` 默认在无副露手牌上使用 Numba 加速版，副露手牌自动回退到基础 Python 实现；`tests/test_expected_score_numba.py` 用于保证两套实现数值一致。
 
 ## 有用的路径
 
-- `src/mahjong_py/expected_score_numba.py`：实验版主入口 `ExpectedScoreNumbaCalculator`，没有接入默认 API。当前主要优化都集中在这里。
+- `src/mahjong_py/expected_score_numba.py`：Numba 加速版主入口 `ExpectedScoreNumbaCalculator`。当前主要优化都集中在这里，并已通过 `/calc` 的 `use_numba` 开关接入 API。
 - `_ArrayGraph` + `_calc_stats_array`：把原来的 Python 对象图改成数组图，并把倒推听牌率、和牌率、点数期望的动态规划下沉到 Numba。
 - `_necessary_mask_numba` / `_unnecessary_mask_numba`：把进张、打张候选从 Python list/set 形态改成 bit mask，并复用 `necessary.py`、`unnecessary.py` 的查表热路径。
 - `_calc_score_fast_or_none` / `_check_pattern_yaku_fast` / `_evaluate_blocks_fast`：保留原计分规则，但减少 `ScoreCalculator` 中多次重复遍历 block 的成本。
